@@ -14,5 +14,11 @@ services:
       retries: 20
     volumes:
       - notifications:/var/lib/postgresql/data
+  receiver:
+    image: nginx:alpine
+    volumes:
+      - ./docker/receiver.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:18081:8080"
 volumes:
   notifications:
