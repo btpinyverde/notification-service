@@ -77,7 +77,7 @@ mvn test
 - **Aceptación.** El POST responde después del guardado. La API key se lee de configuración y el servicio no usa sesiones.
 - **Cola.** Una sentencia usa `FOR UPDATE SKIP LOCKED` para seleccionar y reservar. El envío se hace fuera de la transacción. Un token impide que un consumidor con una reserva vencida actualice el resultado. Una cola en PostgreSQL permite guardar y hacer elegible el pedido en una sola operación, evitando coordinar un broker separado.
 - **Orden y reintentos.** Entre trabajos elegibles se elige prioridad y después antigüedad. El worker permite hasta tres intentos con esperas de uno y dos segundos tras los primeros fallos.
-- **Canales.** LOG permite una verificación local. SERVICE reproduce integración y fallos HTTP. El worker solo envía a destinos habilitados. Un destino fuera de la lista queda registrado como fallo de despacho. El cliente HTTP usa límites de tiempo y desactiva redirecciones.
+- **Canales.** LOG permite una verificación local. SERVICE reproduce integración y fallos HTTP. El destino debe estar habilitado en configuración. El cliente HTTP usa límites de tiempo y desactiva redirecciones.
 
 ## Trade-offs y limitaciones
 
