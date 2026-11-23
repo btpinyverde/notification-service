@@ -10,6 +10,7 @@ spring:
     password: ${POSTGRES_PASSWORD:local-demo-password}
 notifications:
   api-key: ${NOTIFICATIONS_API_KEY}
+  service-targets: ${NOTIFICATIONS_SERVICE_TARGETS:}
   worker:
     enabled: true
     concurrency: 4
