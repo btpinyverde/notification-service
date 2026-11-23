@@ -3,6 +3,7 @@ package io.github.btpinyverde.notification_service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RestController
 @RequestMapping("/notifications")
 class NotificationApi {
+    private static final String WITHOUT_NUL = "[^\\x00]*";
+    private static final String NUL_MESSAGE = "no puede contener el carácter nulo (U+0000)";
     private static final Logger LOG = LoggerFactory.getLogger(NotificationApi.class);
     private final Notifications notifications;
     private final ServiceTargets targets;
@@ -52,12 +55,15 @@ class NotificationApi {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "No existe esa notificación"));
     }
 
-    record Create(@NotBlank @Size(max = 512) String recipient,
-                  @NotNull Notification.Channel channel,
-                  @NotBlank @Size(max = 200) String subject,
-                  @NotBlank @Size(max = 10000) String body,
-                  @NotNull Notification.Priority priority,
-                  @Size(max = 32) Map<@NotBlank @Size(max = 64) String, @NotNull @Size(max = 512) String> metadata) {}
+    record Create(
+            @NotBlank @Size(max = 512) @Pattern(regexp = WITHOUT_NUL, message = NUL_MESSAGE) String recipient,
+            @NotNull Notification.Channel channel,
+            @NotBlank @Size(max = 200) @Pattern(regexp = WITHOUT_NUL, message = NUL_MESSAGE) String subject,
+            @NotBlank @Size(max = 10000) @Pattern(regexp = WITHOUT_NUL, message = NUL_MESSAGE) String body,
+            @NotNull Notification.Priority priority,
+            @Size(max = 32) Map<
+                    @NotBlank @Size(max = 64) @Pattern(regexp = WITHOUT_NUL, message = NUL_MESSAGE) String,
+                    @NotNull @Size(max = 512) @Pattern(regexp = WITHOUT_NUL, message = NUL_MESSAGE) String> metadata) {}
 
     record Accepted(UUID id, Notification.Status status) {}
     record View(UUID id, Notification.Status status, int attempts, String lastError,
