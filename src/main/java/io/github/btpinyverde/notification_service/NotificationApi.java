@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -48,7 +47,8 @@ ResponseEntity<Accepted> create(@Valid @RequestBody Create request) {
 
 @GetMapping("/{id}")
 View get(@PathVariable UUID id) {
-    return notifications.find(id).map(n -> new View(n.id(), n.status(), n.createdAt()))
+    return notifications.find(id).map(n -> new View(n.id(), n.status(), n.attempts(), n.lastError(), n.createdAt(), n.updatedAt()))
+
     .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "no existe esa notificacion"));
 }
 
@@ -61,7 +61,8 @@ View get(@PathVariable UUID id) {
                   @NotNull Notification.Priority priority,
                   @Size(max = 32) Map<@NotBlank @Size(max = 64) String, @NotNull @Size(max = 512) String> metadata) {}
     record Accepted(UUID id, Notification.Status status) {}
-    record View(UUID id, Notification.Status status, Instant createdAt) {}
+    record View(UUID id, Notification.Status status, int attempts, String lastError,
+                Instant createdAt, Instant updatedAt) {}
 
 
 
