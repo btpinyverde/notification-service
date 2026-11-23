@@ -8,7 +8,18 @@ JDK 17 y Maven 3.6.3 o posterior para ejecutar la aplicación en desarrollo.
 
 Docker con Compose v2.20 o posterior para PostgreSQL. Las pruebas con Testcontainers también requieren Docker.
 
+Para levantar el proyecto completo, alcanza con Docker Compose. La primera construcción descarga imágenes y dependencias de Maven Central.
+
 ## Cómo levantar el proyecto
+
+### Entrega con Compose
+
+```sh
+docker compose up --build -d --wait
+curl -fsS http://localhost:8080/actuator/health
+```
+
+Compose levanta la API, PostgreSQL y el receptor de prueba. Usá `docker compose logs app` para ver el despacho y `docker compose down` para detener los servicios conservando los datos.
 
 ### Desarrollo local
 
@@ -31,6 +42,8 @@ La base y el usuario de PostgreSQL se llaman `notifications`. La contraseña de 
 La API pide `X-API-Key: local-demo-key` para crear y consultar notificaciones.
 
 Usá también la API key para consultar métricas.
+
+Para cambiar los valores de Compose, copiá `.env.example` a `.env`.
 
 ## Probar el servicio
 
@@ -59,6 +72,8 @@ Enviá otro pedido con `channel: SERVICE` y uno de estos destinos en `recipient`
 | --- | --- |
 | `http://localhost:18081/delivery` | El receptor devuelve 204. El trabajo termina en `SENT`. |
 | `http://localhost:18081/unavailable` | El receptor devuelve 503. El trabajo termina en `FAILED` con tres intentos y `lastError: HTTP_503`. |
+
+Si la API también corre en Compose, usá `http://receiver:8080/delivery` o `http://receiver:8080/unavailable`.
 
 ### Salud, logs y métricas
 
@@ -97,3 +112,4 @@ mvn test
 - Si el worker cae después del envío, el destino puede recibirlo de nuevo. El receptor puede deduplicar con el ID de `Idempotency-Key`. El POST de entrada admite pedidos repetidos.
 - Todos los fallos HTTP usan el mismo presupuesto de reintentos. En producción distinguiría errores permanentes y consideraría `Retry-After` y jitter.
 - Los contadores son por instancia. El canal LOG escribe el contenido como parte de la entrega. En producción harían falta políticas de retención y alertas por acumulación.
+- Para un entorno compartido usaría TLS, credenciales por cliente con rotación y permisos de consulta. La API y el worker comparten el binario; `NOTIFICATIONS_WORKER_ENABLED=false` permite ejecutar una instancia solo como API.
