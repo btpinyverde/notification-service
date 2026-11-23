@@ -8,3 +8,5 @@ spring:
     url: ${NOTIFICATIONS_DB_URL:jdbc:postgresql://localhost:15433/notifications}
     username: ${POSTGRES_USER:notifications}
     password: ${POSTGRES_PASSWORD:local-demo-password}
+notifications:
+  api-key: ${NOTIFICATIONS_API_KEY}
