@@ -12,7 +12,7 @@ import static io.github.btpinyverde.notification_service.Notification.Channel.LO
 import static io.github.btpinyverde.notification_service.Notification.Priority.HIGH;
 import static io.github.btpinyverde.notification_service.Notification.Status.PENDING;
 
-@SpringBootTest 
+@SpringBootTest(properties = "notifications.api-key=test-key")
 class PersistenceIntegrationTest extends PostgresTestSupport {
     @Autowired Notifications notifications;
 
