@@ -1,5 +1,6 @@
 package io.github.btpinyverde.notification_service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,6 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static io.github.btpinyverde.notification_service.Notification.Channel.LOG;
 import static io.github.btpinyverde.notification_service.Notification.Priority.MEDIUM;
@@ -21,12 +23,14 @@ import static io.github.btpinyverde.notification_service.Notification.Status.PRO
 class DispatcherTest {
     private final NotificationQueue queue = mock(NotificationQueue.class);
     private final NotificationChannel channel = mock(NotificationChannel.class);
+    private final SimpleMeterRegistry metrics = new SimpleMeterRegistry();
     private Dispatcher dispatcher;
+
 
     @BeforeEach
     void registerChannel() {
         when(channel.type()).thenReturn(LOG);
-        dispatcher = new Dispatcher(queue, List.of(channel));
+        dispatcher = new Dispatcher(queue, List.of(channel), metrics);
         clearInvocations(channel);
     }
 
@@ -53,6 +57,7 @@ class DispatcherTest {
         order.verify(queue).claim();
         order.verify(channel).send(claim.notification());
         order.verify(queue).sent(claim);
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "sent").count()).isEqualTo(1);
         verifyNoMoreInteractions(queue, channel);
     }
 

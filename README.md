@@ -30,6 +30,8 @@ La base y el usuario de PostgreSQL se llaman `notifications`. La contraseña de 
 
 La API pide `X-API-Key: local-demo-key` para crear y consultar notificaciones.
 
+Usá también la API key para consultar métricas.
+
 ## Probar el servicio
 
 ### Crear y consultar una notificación
@@ -58,6 +60,16 @@ Enviá otro pedido con `channel: SERVICE` y uno de estos destinos en `recipient`
 | `http://localhost:18081/delivery` | El receptor devuelve 204. El trabajo termina en `SENT`. |
 | `http://localhost:18081/unavailable` | El receptor devuelve 503. El trabajo termina en `FAILED` con tres intentos y `lastError: HTTP_503`. |
 
+### Salud, logs y métricas
+
+Consultá `GET /actuator/health` para verificar el estado del servicio. Buscá `notificationId` en los logs JSON para seguir un pedido.
+
+```sh
+curl -fsS -H 'X-API-Key: local-demo-key' 'http://localhost:8080/actuator/metrics/notifications.dispatch.outcomes'
+```
+
+Cada resultado aparece en el contador después de su primera ocurrencia.
+
 ## Pruebas
 
 ```sh
@@ -84,3 +96,4 @@ mvn test
 - La prioridad alta puede postergar trabajos de prioridad baja bajo carga continua. Una reserva que vence consume un intento.
 - Si el worker cae después del envío, el destino puede recibirlo de nuevo. El receptor puede deduplicar con el ID de `Idempotency-Key`. El POST de entrada admite pedidos repetidos.
 - Todos los fallos HTTP usan el mismo presupuesto de reintentos. En producción distinguiría errores permanentes y consideraría `Retry-After` y jitter.
+- Los contadores son por instancia. El canal LOG escribe el contenido como parte de la entrega. En producción harían falta políticas de retención y alertas por acumulación.
