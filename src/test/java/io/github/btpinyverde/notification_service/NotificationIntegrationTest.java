@@ -64,6 +64,11 @@ class NotificationIntegrationTest extends PostgresTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[?(@.field == 'recipient')]").isNotEmpty())
                 .andExpect(jsonPath("$.errors[?(@.field == 'priority')]").isNotEmpty());
+        mvc.perform(post("/notifications").header(SecurityConfig.HEADER, KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request("SERVICE", "https://example.com/delivery")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("recipient debe ser una URL SERVICE habilitada"));
     }
 
     @Test
