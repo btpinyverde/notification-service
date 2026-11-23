@@ -54,8 +54,9 @@ class Notifications {
             return new Notification(
                 row.getObject("id", UUID.class),
                 message,
-                Notification.Status.valueOf(row.getString("status")),
-                row.getObject("created_at", OffsetDateTime.class).toInstant());
+                Notification.Status.valueOf(row.getString("status")), row.getInt("attempts"),
+                row.getString("last_error"), row.getObject("created_at", OffsetDateTime.class).toInstant(),
+                row.getObject("updated_at", OffsetDateTime.class).toInstant());
         }
 
 
