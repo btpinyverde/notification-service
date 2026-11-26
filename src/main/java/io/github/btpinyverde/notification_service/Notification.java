@@ -11,7 +11,7 @@ public record Notification(UUID id, Message message, Status status, Instant crea
 
 
     record Message(String recipient, 
-        Channel chanel, 
+        Channel channel, 
         String subject, 
         String body, 
         Priority priority, 
