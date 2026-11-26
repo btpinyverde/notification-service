@@ -8,12 +8,31 @@ services:
     ports:
       - "127.0.0.1:15433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notifications} -d notifications"]
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 2s
       timeout: 2s
       retries: 20
     volumes:
       - notifications:/var/lib/postgresql/data
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NOTIFICATIONS_DB_URL: jdbc:postgresql://db:5432/notifications
+      POSTGRES_USER: ${POSTGRES_USER:-notifications}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-demo-password}
+      NOTIFICATIONS_API_KEY: ${NOTIFICATIONS_API_KEY:-local-demo-key}
+      NOTIFICATIONS_SERVICE_TARGETS: ${NOTIFICATIONS_SERVICE_TARGETS:-http://receiver:8080/delivery,http://receiver:8080/unavailable}
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
   receiver:
     image: nginx:alpine
     volumes:
