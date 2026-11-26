@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,6 +21,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RestController
 @RequestMapping("/notifications")
 class NotificationApi {
+    private static final Logger LOG = LoggerFactory.getLogger(NotificationApi.class);
     private final Notifications notifications;
     private final ServiceTargets targets;
 
@@ -36,6 +39,8 @@ class NotificationApi {
         var message = new Notification.Message(request.recipient(), request.channel(), request.subject(),
                 request.body(), request.priority(), request.metadata() == null ? Map.of() : Map.copyOf(request.metadata()));
         UUID id = notifications.create(message);
+        LOG.atInfo().addKeyValue("event", "notification.accepted")
+                .addKeyValue("notificationId", id).addKeyValue("channel", message.channel()).log("Notificación aceptada");
         return ResponseEntity.accepted().location(URI.create("/notifications/" + id))
                 .body(new Accepted(id, Notification.Status.PENDING));
     }
