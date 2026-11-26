@@ -44,19 +44,27 @@ El `POST` devuelve `202 Accepted` con un ID y el encabezado `Location`. Usá ese
 curl -fsS -H 'X-API-Key: local-demo-key' http://localhost:8080/notifications/ID
 ```
 
-La fila recién creada queda en `PENDING`.
+La fila se crea en `PENDING`. El worker procesa el canal LOG en segundo plano y la marca como `SENT`.
 
 ## Pruebas
 
 ```sh
-mvn -Dtest=NotificationApiTest test
+mvn -Dtest=NotificationApiTest,DispatcherTest test
 mvn test
 ```
 
 - `PersistenceIntegrationTest` guarda y recupera un pedido en PostgreSQL.
 - `NotificationApiTest` cubre aceptación, autenticación y validación.
+- `DispatcherTest` cubre el envío y los reintentos.
+- `QueueConcurrencyIntegrationTest` verifica que dos transacciones no reservan la misma fila y pueden avanzar sobre filas distintas.
 
 ## Decisiones de diseño
 
 - **Persistencia.** PostgreSQL guarda las notificaciones y sus estados. JDBC permite revisar las consultas y Flyway versiona el esquema.
 - **Aceptación.** El POST responde después del guardado. La API key se lee de configuración y el servicio no usa sesiones.
+- **Cola.** Una sentencia usa `FOR UPDATE SKIP LOCKED` para seleccionar y reservar. El envío se hace fuera de la transacción. Un token impide que un consumidor con una reserva vencida actualice el resultado. Una cola en PostgreSQL permite guardar y hacer elegible el pedido en una sola operación, evitando coordinar un broker separado.
+- **Orden y reintentos.** Entre trabajos elegibles se elige prioridad y después antigüedad. El worker permite hasta tres intentos con esperas de uno y dos segundos tras los primeros fallos.
+
+## Trade-offs y limitaciones
+
+- La prioridad alta puede postergar trabajos de prioridad baja bajo carga continua. Una reserva que vence consume un intento.

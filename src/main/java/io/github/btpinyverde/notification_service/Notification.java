@@ -1,21 +1,16 @@
 package io.github.btpinyverde.notification_service;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
-
-public record Notification(UUID id, Message message, Status status, Instant createdAt) {
-    enum Channel { LOG }
-    enum Priority { LOW, MEDIUM, HIGH }
-    enum Status { PENDING }
+import java.util.Map;
 
 
-    record Message(String recipient, 
-        Channel channel, 
-        String subject, 
-        String body, 
-        Priority priority, 
-        Map <String, String> metadata
-    ) {}
-    
+record Notification(UUID id, Message message, Status status, int attempts,
+                           String lastError, Instant createdAt, Instant updatedAt) {
+    public enum Channel { LOG }
+    public enum Priority { LOW, MEDIUM, HIGH }
+    public enum Status { PENDING, PROCESSING, SENT, FAILED }
+
+    public record Message(String recipient, Channel channel, String subject, String body,
+                          Priority priority, Map<String, String> metadata) {}
 }
