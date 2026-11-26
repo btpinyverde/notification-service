@@ -1,5 +1,6 @@
 package io.github.btpinyverde.notification_service;
 
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -7,7 +8,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 
-@Testcontainers 
+@Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 abstract class PostgresTestSupport {
     @Container 
     private static final PostgreSQLContainer<?> DATABASE = new PostgreSQLContainer<>("postgres:16");

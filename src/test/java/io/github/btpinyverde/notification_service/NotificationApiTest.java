@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -16,7 +17,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest (NotificationApi.class)
+@WebMvcTest (controllers = NotificationApi.class, properties = "notifications.api-key=test-key")
+@Import(SecurityConfig.class)
 class NotificationApiTest {
     private static final String VALID = """
         {
@@ -35,7 +37,7 @@ class NotificationApiTest {
     void returnsAcceptedWithThePersistedId() throws Exception {
         var id = UUID.randomUUID();
         when(notifications.create(any())).thenReturn(id);
-        mvc.perform(request(VALID))
+        mvc.perform(request(VALID).header(SecurityConfig.HEADER, "test-key"))
             .andExpect(status().isAccepted())
             .andExpect(header().string("Location", "/notifications/" + id))
             .andExpect (jsonPath("$.id").value(id.toString()))
@@ -43,8 +45,26 @@ class NotificationApiTest {
     }
 
     @Test 
+    void rejectsAnUnauthenticatedRequestBeforePersistence() throws Exception {
+        mvc.perform(request(VALID))
+            .andExpect(status().isUnauthorized());
+            verifyNoInteractions(notifications);
+        mvc.perform(request(VALID).header(SecurityConfig.HEADER, "invalid"))
+            .andExpect(status().isUnauthorized());
+            verifyNoInteractions(notifications);
+    }
+
+        @Test
+    void describesMissingFieldsWithoutPersistingTheRequest() throws Exception {
+        mvc.perform(request("{}").header(SecurityConfig.HEADER, "test-key"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'priority')]").isNotEmpty());
+        verifyNoInteractions(notifications);
+    }
+
+    @Test 
     void rejectsNumericEnumValues() throws Exception {
-        mvc.perform(request(VALID.replace("\"LOG\"", "0")))
+        mvc.perform(request(VALID.replace("\"LOG\"", "0")).header(SecurityConfig.HEADER, "test-key"))
             .andExpect(status().isBadRequest());
             verifyNoInteractions(notifications);
     }
