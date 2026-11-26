@@ -15,3 +15,12 @@ notifications:
     enabled: true
     concurrency: 4
     poll-ms: 250
+logging:
+  structured:
+    format:
+      console: logstash
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
