@@ -7,7 +7,7 @@ import java.util.Map;
 
 record Notification(UUID id, Message message, Status status, int attempts,
                            String lastError, Instant createdAt, Instant updatedAt) {
-    public enum Channel { LOG }
+    public enum Channel { LOG, SERVICE }
     public enum Priority { LOW, MEDIUM, HIGH }
     public enum Status { PENDING, PROCESSING, SENT, FAILED }
 
