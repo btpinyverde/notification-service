@@ -26,7 +26,6 @@ class DispatcherTest {
     private final SimpleMeterRegistry metrics = new SimpleMeterRegistry();
     private Dispatcher dispatcher;
 
-
     @BeforeEach
     void registerChannel() {
         when(channel.type()).thenReturn(LOG);
@@ -57,7 +56,8 @@ class DispatcherTest {
         order.verify(queue).claim();
         order.verify(channel).send(claim.notification());
         order.verify(queue).sent(claim);
-        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "sent").count()).isEqualTo(1);
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "sent").count())
+                .isEqualTo(1);
         verifyNoMoreInteractions(queue, channel);
     }
 
@@ -66,15 +66,44 @@ class DispatcherTest {
     void recordsFailuresWithBoundedBackoff(int attempt, Notification.Status status, int delay)
             throws Exception {
         var claim = claim(attempt);
+        var outcome = new RetryPolicy.Outcome(status, Duration.ofSeconds(delay));
         when(queue.claim()).thenReturn(Optional.of(claim));
-        doThrow(new NotificationChannel.DispatchFailure("DISPATCH_FAILED")).when(channel).send(claim.notification());
+        when(queue.failedAttempt(claim, outcome, "DISPATCH_FAILED")).thenReturn(true);
+        doThrow(new NotificationChannel.DispatchFailure("DISPATCH_FAILED"))
+                .when(channel).send(claim.notification());
 
         dispatcher.poll();
 
-        var outcome = new RetryPolicy.Outcome(status, Duration.ofSeconds(delay));
         verify(queue).failedAttempt(claim, outcome, "DISPATCH_FAILED");
         verify(queue, never()).sent(any());
         assertThat(new RetryPolicy().afterFailure(attempt)).isEqualTo(outcome);
+
+        String expected = status == Notification.Status.FAILED ? "failed" : "retry";
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", expected).count())
+                .isEqualTo(1);
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "lease_lost").count())
+                .isZero();
+    }
+
+    @Test
+    void recordsLeaseLostWhenFailureCannotBeSaved() throws Exception {
+        var claim = claim(1);
+        var outcome = new RetryPolicy().afterFailure(1);
+        when(queue.claim()).thenReturn(Optional.of(claim));
+        when(queue.failedAttempt(claim, outcome, "DISPATCH_FAILED")).thenReturn(false);
+        doThrow(new NotificationChannel.DispatchFailure("DISPATCH_FAILED"))
+                .when(channel).send(claim.notification());
+
+        dispatcher.poll();
+
+        verify(queue).failedAttempt(claim, outcome, "DISPATCH_FAILED");
+        verify(queue, never()).sent(any());
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "lease_lost").count())
+                .isEqualTo(1);
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "retry").count())
+                .isZero();
+        assertThat(metrics.counter("notifications.dispatch.outcomes", "outcome", "failed").count())
+                .isZero();
     }
 
     private NotificationQueue.Claim claim(int attempt) {
