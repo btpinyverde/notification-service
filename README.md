@@ -114,9 +114,12 @@ mvn test
 - Todos los fallos HTTP usan el mismo presupuesto de reintentos. En producción distinguiría errores permanentes y consideraría `Retry-After` y jitter.
 - Los contadores son por instancia. El canal LOG escribe el contenido como parte de la entrega. En producción harían falta políticas de retención y alertas por acumulación.
 - Para un entorno compartido usaría TLS, credenciales por cliente con rotación y permisos de consulta. La API y el worker comparten el binario; `NOTIFICATIONS_WORKER_ENABLED=false` permite ejecutar una instancia solo como API.
+<<<<<<< HEAD
 
 ## Consideración sobre Jakarta EE
 
 En WildFly usaría Jakarta REST para los endpoints, CDI para inyección, Bean Validation y un datasource del servidor administrado por JNDI. Mantendría el SQL de reserva y el envío fuera de la transacción. Para el worker usaría Jakarta Concurrency y un `ManagedScheduledExecutorService`. Ejecutaría las migraciones en una etapa explícita del despliegue.
 
 Si el entorno ofreciera un broker administrado, consideraría Jakarta Messaging y acordaría la política de reentrega y el manejo de mensajes agotados. El historial en PostgreSQL y la publicación requerirían un límite transaccional definido, por ejemplo un outbox. Con ambas arquitecturas, la entrega HTTP seguiría necesitando una estrategia de idempotencia en el receptor.
+=======
+>>>>>>> feat/entrega-compose
