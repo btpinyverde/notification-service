@@ -70,6 +70,22 @@ class NotificationApiTest {
         verifyNoInteractions(notifications);
     }
 
+    @Test
+    void rejectsNullCharactersBeforePersistence() throws Exception {
+        String nul = "\\u0000";
+        for (String payload : new String[]{
+                VALID.replace("Hola", "Hola" + nul),
+                VALID.replace("}", ",\"metadata\":{\"source\":\"demo" + nul + "\"}}"),
+                VALID.replace("}", ",\"metadata\":{\"source" + nul + "\":\"demo\"}}")
+        }) {
+            mvc.perform(request(payload).header(SecurityConfig.HEADER, "test-key"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].message")
+                            .value("no puede contener el carácter nulo (U+0000)"));
+        }
+        verifyNoInteractions(notifications);
+    }
+
     private static MockHttpServletRequestBuilder request(String json) {
         return post("/notifications").contentType(MediaType.APPLICATION_JSON).content(json);
     }
