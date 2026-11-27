@@ -19,7 +19,10 @@ import static io.github.btpinyverde.notification_service.Notification.Priority.H
 import static io.github.btpinyverde.notification_service.Notification.Priority.LOW;
 import static io.github.btpinyverde.notification_service.Notification.Priority.MEDIUM;
 
-@SpringBootTest(properties = {"notifications.worker.enabled=false", "notifications.api-key=queue-test-key"})
+@SpringBootTest(properties = {
+        "notifications.worker.enabled=false",
+        "notifications.api-key=queue-test-key"
+})
 class QueueConcurrencyIntegrationTest extends PostgresTestSupport {
     @Autowired NotificationQueue queue;
     @Autowired JdbcTemplate jdbc;
@@ -61,7 +64,8 @@ class QueueConcurrencyIntegrationTest extends PostgresTestSupport {
         });
 
         assertThat(queue.claim()).isEmpty();
-        assertThat(jdbc.queryForObject("SELECT attempts FROM notifications WHERE id = ?", Integer.class, job))
+        assertThat(jdbc.queryForObject(
+                "SELECT attempts FROM notifications WHERE id = ?", Integer.class, job))
                 .isEqualTo(1);
     }
 
@@ -79,7 +83,75 @@ class QueueConcurrencyIntegrationTest extends PostgresTestSupport {
         assertThat(queue.claim()).isEmpty();
     }
 
-    private void whileFirstHasUncommittedClaim(UUID expected, Runnable secondConsumer) throws Exception {
+    @Test
+    void rolledBackClaimDoesNotConsumeAttemptAndCanBeClaimedAgain() {
+        UUID id = enqueue(HIGH, 120, -10);
+
+        var rolledBack = new TransactionTemplate(transactions).execute(transaction -> {
+            var claim = queue.claim().orElseThrow();
+            assertThat(claim.notification().id()).isEqualTo(id);
+            assertThat(claim.notification().attempts()).isEqualTo(1);
+            transaction.setRollbackOnly();
+            return claim;
+        });
+
+        assertThat(rolledBack).isNotNull();
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM notifications WHERE id = ?", String.class, id))
+                .isEqualTo("PENDING");
+        assertThat(jdbc.queryForObject(
+                "SELECT attempts FROM notifications WHERE id = ?", Integer.class, id))
+                .isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT claim_token FROM notifications WHERE id = ?", UUID.class, id))
+                .isNull();
+
+        var current = queue.claim().orElseThrow();
+        assertThat(current.notification().id()).isEqualTo(id);
+        assertThat(current.notification().attempts()).isEqualTo(1);
+        assertThat(current.token()).isNotEqualTo(rolledBack.token());
+        assertThat(queue.sent(current)).isTrue();
+    }
+
+    @Test
+    void expiredClaimCannotFinishBeforeOrAfterAnotherWorkerReclaimsIt() {
+        UUID id = enqueue(HIGH, 120, -10);
+        var stale = queue.claim().orElseThrow();
+        var retry = new RetryPolicy().afterFailure(1);
+
+        jdbc.update(
+                "UPDATE notifications SET lease_until = now() - interval '1 second' WHERE id = ?",
+                id);
+
+        assertThat(queue.sent(stale)).isFalse();
+        assertThat(queue.failedAttempt(stale, retry, "OLD_ATTEMPT")).isFalse();
+        assertThat(queue.recoverExpired(RetryPolicy.MAX_ATTEMPTS)).hasSize(1);
+
+        var current = queue.claim().orElseThrow();
+        assertThat(current.notification().id()).isEqualTo(id);
+        assertThat(current.notification().attempts()).isEqualTo(2);
+        assertThat(current.token()).isNotEqualTo(stale.token());
+
+        assertThat(queue.sent(stale)).isFalse();
+        assertThat(queue.failedAttempt(stale, retry, "OLD_ATTEMPT")).isFalse();
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM notifications WHERE id = ?", String.class, id))
+                .isEqualTo("PROCESSING");
+        assertThat(jdbc.queryForObject(
+                "SELECT claim_token FROM notifications WHERE id = ?", UUID.class, id))
+                .isEqualTo(current.token());
+
+        assertThat(queue.sent(current)).isTrue();
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM notifications WHERE id = ?", String.class, id))
+                .isEqualTo("SENT");
+        assertThat(jdbc.queryForObject(
+                "SELECT attempts FROM notifications WHERE id = ?", Integer.class, id))
+                .isEqualTo(2);
+    }
+
+    private void whileFirstHasUncommittedClaim(UUID expected, Runnable secondConsumer)
+            throws Exception {
         var executor = Executors.newSingleThreadExecutor();
         var firstClaim = new CompletableFuture<UUID>();
         var release = new CountDownLatch(1);
