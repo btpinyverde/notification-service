@@ -101,7 +101,8 @@ mvn test
 ## Decisiones de diseño
 
 - **Persistencia.** PostgreSQL guarda las notificaciones y sus estados. JDBC permite revisar las consultas y Flyway versiona el esquema.
-- **Aceptación.** El POST responde después del guardado. La API key se lee de configuración y el servicio no usa sesiones.
+- **Aceptación.** El POST responde después del guardado.
+- **Autenticación.** Elegí una API key para la integración entre servicios porque el cliente puede autenticarse con un encabezado y una clave compartida. Eso permite probar el flujo sin desplegar un proveedor de identidad. La clave se lee de configuración y el servicio no usa sesiones.
 - **Cola.** Una sentencia usa `FOR UPDATE SKIP LOCKED` para seleccionar y reservar. El envío se hace fuera de la transacción. Un token impide que un consumidor con una reserva vencida actualice el resultado. Una cola en PostgreSQL permite guardar y hacer elegible el pedido en una sola operación, evitando coordinar un broker separado.
 - **Orden y reintentos.** Entre trabajos elegibles se elige prioridad y después antigüedad. El worker permite hasta tres intentos con esperas de uno y dos segundos tras los primeros fallos.
 - **Canales.** LOG permite una verificación local. SERVICE reproduce integración y fallos HTTP. El destino debe estar habilitado en configuración. El cliente HTTP usa límites de tiempo y desactiva redirecciones.
